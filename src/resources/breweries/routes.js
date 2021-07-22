@@ -401,23 +401,54 @@ let breweries = [
   },
 ];
 
+const sortAscById = require("../../helperFunction");
 const express = require("express");
 const breweriesRouter = express.Router();
 
 breweriesRouter.get("/", (req, res) => {
   const queryContent = req.query;
+  let filteredBreweries = [...breweries];
+  console.log(queryContent);
 
-  if (!queryContent.brewery_type) res.json({ breweries });
-  else {
-    let filteredBreweries = breweries.filter(
+  if (Object.keys(queryContent).length === 0) res.json({ breweries });
+  if (
+    !Object.keys(queryContent).some(
+      (key) =>
+        key === "brewery_type" ||
+        key === "limit" ||
+        key === "sort" ||
+        key === "filter_by"
+    )
+  )
+    res.json({ Error: "Query not found" });
+
+  if (queryContent.brewery_type) {
+    filteredBreweries = filteredBreweries.filter(
       (target) => target.brewery_type === queryContent.brewery_type
     );
     if (filteredBreweries.length === 0)
       res.json({
         Error: `brewery_type: ${queryContent.brewery_type} not found`,
       });
-    res.json({ filteredBreweries });
   }
+
+  if (queryContent.filter_by === "city") {
+    filteredBreweries = filteredBreweries.filter(
+      (target) => target.city.toLowerCase() === queryContent.value.toLowerCase()
+    );
+
+    if (filteredBreweries.length === 0)
+      res.json({
+        Error: `City <${queryContent.value}>  has 0 breweries`,
+      });
+  }
+
+  if (queryContent.sort === "desc")
+    filteredBreweries = filteredBreweries.reverse();
+
+  if (queryContent.limit) filteredBreweries.length = queryContent.limit;
+
+  res.json({ filteredBreweries });
 });
 
 breweriesRouter.get("/:id", (req, res) => {
@@ -430,6 +461,7 @@ breweriesRouter.get("/:id", (req, res) => {
 
 breweriesRouter.post("/", (req, res) => {
   breweries = [...breweries, req.body];
+  breweries.sort(sortAscById());
   const response = {
     route: req.originalUrl,
     method: req.method,
@@ -461,6 +493,11 @@ breweriesRouter.patch("/:id", (req, res) => {
     else return target;
   });
   res.json({ updateTarget });
+});
+
+breweriesRouter.get("/:id/tours", (req, res) => {
+  let queryUrl = req.originalUrl.split("?")[1];
+  res.redirect(`/tours?breweryId=${req.params.id}&${queryUrl}`);
 });
 
 module.exports = breweriesRouter;
